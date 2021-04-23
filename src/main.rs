@@ -12,6 +12,9 @@ use std::cmp::Ordering::Equal;
 use std::option::Option::Some;
 use std::result::Result::Ok;
 use std::collections::BTreeSet;
+use std::collections::Bound;
+use immutable_chunkmap::set::Set;
+use immutable_chunkmap::map::Map;
 use uuid::Uuid;
 
 pub mod traits {
@@ -19,6 +22,9 @@ pub mod traits {
     pub type EntityId = i64;
     pub type AttributeId = i64;
     pub type TransactionId = i64;
+
+    #[derive(Shrinkwrap, Clone, Debug)]
+    pub struct Key(pub &'static str);
 
     pub trait Minimum {
         fn minimum() -> Self;
@@ -42,7 +48,6 @@ pub mod traits {
         }
     }
 
-
     #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
     pub enum V<'v> {
         MinimumValue,
@@ -50,6 +55,7 @@ pub mod traits {
         EntityId(EntityId),
         Uuid(uuid::Uuid),
         I64(i64),
+        Key,
         MaximumValue
     }
 
@@ -74,7 +80,7 @@ pub mod traits {
     }
 }
 
-use traits::{Minimum, Maximum, EntityId, AttributeId, TransactionId, V};
+use traits::{Minimum, Maximum, EntityId, AttributeId, TransactionId, V, Key};
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Datom<'d> {
@@ -170,81 +176,87 @@ impl Ord for EAVTDatom<'_> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Shrinkwrap, Clone)]
 struct EAVTIndex<'i> {
-    index: BTreeSet::<EAVTDatom<'i>>,
+    index: Set::<EAVTDatom<'i>>,
 }
 
 impl <'index> EAVTIndex<'index> {
     fn new() -> EAVTIndex<'index>{
-        EAVTIndex{index: BTreeSet::new()}
+        EAVTIndex{index: Set::new()}
     }
 
-    fn insert(&mut self, datom: Datom<'index>) {
-        self.index.insert(EAVTDatom::from(datom));
+    fn insert(self, datom: Datom<'index>) -> EAVTIndex {
+        EAVTIndex{
+            index: self.index.insert(EAVTDatom::from(datom)).0
+        }
     }
 
     fn select_e(&self, e: EntityId) -> impl Iterator<Item=Datom> {
         let min = EAVTDatom::from(Datom::new(e, AttributeId::minimum(), V::minimum(), TransactionId::minimum()));
         let max = EAVTDatom::from(Datom::new(e, AttributeId::maximum(), V::maximum(), TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|eavt_datom| eavt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|eavt_datom| eavt_datom.datom);
         range
     }
     fn select_ea(&self, e: EntityId, a: AttributeId) ->  impl Iterator<Item=Datom> {
         let min = EAVTDatom::from(Datom::new(e, a, V::minimum(), TransactionId::minimum()));
         let max = EAVTDatom::from(Datom::new(e, a, V::maximum(), TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|eavt_datom| eavt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|eavt_datom| eavt_datom.datom);
         range
     }
     fn select_eav(&self, e: EntityId, a: AttributeId, v: V<'index>) ->  impl Iterator<Item=Datom> {
         let min = EAVTDatom::from(Datom::new(e, a, v, TransactionId::minimum()));
         let max = EAVTDatom::from(Datom::new(e, a, v, TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|eavt_datom| eavt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|eavt_datom| eavt_datom.datom);
         range
     }
     fn select_eavt(&self, e: EntityId, a: AttributeId, v: V<'index>, t: TransactionId) -> impl Iterator<Item=Datom> {
         let min = EAVTDatom::from(Datom::new(e, a, v, t));
         let max = EAVTDatom::from(Datom::new(e, a, v, t));
-        let range = self.index.range(min..=max).map(|eavt_datom| eavt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|eavt_datom| eavt_datom.datom);
         range
     }
 }
 
+#[derive(Shrinkwrap, Clone)]
 struct AEVTIndex<'i> {
-    index: BTreeSet::<AEVTDatom<'i>>,
+    // index: BTreeSet::<AEVTDatom<'i>>,
+    index: Set::<AEVTDatom<'i>>,
 }
 
 impl <'index> AEVTIndex<'index> {
-    fn new() -> AEVTIndex<'index>{
-        AEVTIndex{index: BTreeSet::new()}
+    fn new() -> AEVTIndex<'index> {
+        AEVTIndex{index: Set::new()}
     }
 
-    fn insert(&mut self, datom: Datom<'index>) {
-        self.index.insert(AEVTDatom::from(datom));
+    fn insert(self, datom: Datom<'index>) -> AEVTIndex {
+        AEVTIndex {
+            index: self.index.insert(AEVTDatom::from(datom)).0,
+        }
     }
 
     fn select_a(&self, a: AttributeId) -> impl Iterator<Item=Datom> {
         let min = AEVTDatom::from(Datom::new(EntityId::minimum(), a, V::minimum(), TransactionId::minimum()));
         let max = AEVTDatom::from(Datom::new(EntityId::maximum(), a, V::maximum(), TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|aevt_datom| aevt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|aevt_datom| aevt_datom.datom);
         range
     }
     fn select_ae(&self, a: AttributeId, e: EntityId) -> impl Iterator<Item=Datom> {
         let min = AEVTDatom::from(Datom::new(e, a, V::minimum(), TransactionId::minimum()));
         let max = AEVTDatom::from(Datom::new(e, a, V::maximum(), TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|aevt_datom| aevt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|aevt_datom| aevt_datom.datom);
         range
     }
     fn select_aev(&self, a: AttributeId,  e: EntityId, v: V<'index>) ->  impl Iterator<Item=Datom> {
         let min = AEVTDatom::from(Datom::new(e, a, v, TransactionId::minimum()));
         let max = AEVTDatom::from(Datom::new(e, a, v, TransactionId::maximum()));
-        let range = self.index.range(min..=max).map(|aevt_datom| aevt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|aevt_datom| aevt_datom.datom);
         range
     }
     fn select_aevt(&self, a: AttributeId,  e: EntityId, v: V<'index>, t: TransactionId) -> impl Iterator<Item=Datom> {
         let min = AEVTDatom::from(Datom::new(e, a, v, t));
         let max = AEVTDatom::from(Datom::new(e, a, v, t));
-        let range = self.index.range(min..=max).map(|aevt_datom| aevt_datom.datom);
+        let range = self.index.range(Bound::Included(min), Bound::Included(max)).map(|aevt_datom| aevt_datom.datom);
         range
     }
 }
@@ -291,83 +303,116 @@ impl Ord for AEVTDatom<'_> {
     }
 }
 
+#[derive(Clone)]
 struct DatabaseSnapshot<'snapshot> {
     eavt: EAVTIndex<'snapshot>,
     aevt: AEVTIndex<'snapshot>,
+    idents: Map<EntityId, Key>,
+    attributes: Map<EntityId, Attribute>
+}
+
+impl <'snapshot> DatabaseSnapshot<'snapshot> {
+    fn new() -> DatabaseSnapshot<'snapshot> {
+        DatabaseSnapshot {
+            eavt: EAVTIndex::new(),
+            aevt: AEVTIndex::new(),
+            idents: Map::new(),
+            attributes: Map::new(),
+        }
+    }
+
+    fn insert(self, datom: Datom<'snapshot>) -> DatabaseSnapshot {
+        DatabaseSnapshot {
+            eavt: self.eavt.insert(datom),
+            aevt: self.aevt.insert(datom),
+            idents: self.idents,
+            attributes: self.attributes,
+        }
+    }
+
+    fn select_e(&self, e: EntityId) -> impl Iterator<Item=Datom> { self.eavt.select_e(e) }
+    fn select_ea(&self, e: EntityId, a: AttributeId) ->  impl Iterator<Item=Datom> { self.eavt.select_ea(e, a) }
+    fn select_eav(&self, e: EntityId, a: AttributeId, v: V<'snapshot>) ->  impl Iterator<Item=Datom> { self.eavt.select_eav(e, a, v) }
+    fn select_eavt(&self, e: EntityId, a: AttributeId, v: V<'snapshot>, t: TransactionId) -> impl Iterator<Item=Datom> { self.eavt.select_eavt(e, a, v, t) }
+
+    fn select_a(&self, a: AttributeId) -> impl Iterator<Item=Datom> { self.aevt.select_a(a) }
+    fn select_ae(&self, a: AttributeId, e: EntityId) -> impl Iterator<Item=Datom> { self.aevt.select_ae(a,e) }
+    fn select_aev(&self, a: AttributeId,  e: EntityId, v: V<'snapshot>) ->  impl Iterator<Item=Datom> { self.aevt.select_aev(a,e,v) }
+    fn select_aevt(&self, a: AttributeId,  e: EntityId, v: V<'snapshot>, t: TransactionId) -> impl Iterator<Item=Datom> { self.aevt.select_aevt(a,e,v,t) }
+}
+
+struct LeafNode<K, V, const B: usize> {
+    keys: [K; B],
+    vals: [V; B],
+
+}
+
+const uniqueIdentity: Key = Key(":db.unique/identity");
+const uniqueValue: Key = Key(":db.unique/value");
+const cardinalityOne: Key = Key(":db.cardinality/one");
+const cardinalityMany: Key = Key(":db.cardinality/many");
+
+#[derive(Clone)]
+struct Attribute {
+    e: EntityId,
+    ident: Key,
+    cardinality: Key,
+    value_type: Key, 
+    component: bool,
+    unique: Key,
 }
 
 fn main() {
-    let mut eavt_index = EAVTIndex::new();
-    let mut aevt_index = AEVTIndex::new();
-    let mut vs = OrdSet::<V>::new();
-
-    // for eid in 0..5 {
-    //     let datom = Datom::new(eid, 10 - eid, V::String("foo"), 1);
-    //     eavt_index.insert(datom);
-    //     aevt_index.insert(AEVTDatom::from(datom));
-    //     vs.insert(datom.v);
-    //     vs.insert(V::EntityId(eid));
-    //     vs.insert(V::I64(eid));
-    //     vs.insert(V::Uuid(Uuid::new_v4()));
-    // }
+    let mut snapshot = DatabaseSnapshot::new();
+    let mut snapshot1 : Option<DatabaseSnapshot> = None; 
 
     for eid in 0..5 {
         for aid in 0..5 {
             for v in 0..5 {
                 let datom = Datom::new(eid, aid, V::I64(v), 1);
-                eavt_index.insert(datom);
-                aevt_index.insert(datom);
+                snapshot = snapshot.insert(datom);
             }
+        }
+        if eid == 1 {
+            snapshot1 = Some(snapshot.clone());
         }
     }
 
-    // let base = base_schema();
-    // for cmd in base_schema().iter().unwrap() {
-        
-    //     let datom = Datom::new(
-    //         cmd.get(0).unwrap().to_int().unwrap(), 
-    //         a: AttributeId, 
-    //         v: V<'d>, 
-    //         t: TransactionId)
-    //     // eavt_index.insert(EAVTDatom::from(Datom::new(cmd. , cmd[1], cmd[2], 0)));
-    // }
+    println!("====== snapshot @ 5 ===");
 
-
-    println!("EAVT: {:?}", eavt_index);
-
-    eavt_index.select_e(1).for_each(
-        |datom| println!("select e: {:?}", datom)
-    );
-
-    eavt_index.select_ea(1, 1).for_each(
-        |datom| println!("select ea: {:?}", datom)
-    );
-
-    eavt_index.select_eav(1, 1, V::I64(1)).for_each(
-        |datom| println!("select eav: {:?}", datom)
-    );
-
-    eavt_index.select_eavt(1, 1, V::I64(1), 1).for_each(
-        |datom| println!("select eavt: {:?}", datom)
-    );
-
-    aevt_index.select_a(3).for_each(
+    snapshot.select_a(3).for_each(
         |datom| println!("select a: {:?}", datom)
     );
 
-    aevt_index.select_ae(3 ,3).for_each(
+    snapshot.select_ae(3 ,3).for_each(
         |datom| println!("select ae: {:?}", datom)
     );
 
-    aevt_index.select_aev(3, 3, V::I64(3)).for_each(
+    snapshot.select_aev(3, 3, V::I64(3)).for_each(
         |datom| println!("select aev: {:?}", datom)
     );
 
-    aevt_index.select_aevt(3, 3, V::I64(3), 1).for_each(
+    snapshot.select_aevt(3, 3, V::I64(3), 1).for_each(
         |datom| println!("select aevt: {:?}", datom)
     );
 
-    // println!("AEVT: {:?}", aevt_index);
-    // println!("Vs: {:?}", vs);
-    // println!("base schema: {:?}", base_schema())
+    
+    if let Some(snapshot1) = snapshot1 {
+        println!("====== snapshot @ 1 ===");
+        snapshot1.select_a(3).for_each(
+            |datom| println!("select a: {:?}", datom)
+        );
+    
+        snapshot1.select_ae(3 ,3).for_each(
+            |datom| println!("select ae: {:?}", datom)
+        );
+    
+        snapshot1.select_aev(3, 3, V::I64(3)).for_each(
+            |datom| println!("select aev: {:?}", datom)
+        );
+    
+        snapshot1.select_aevt(3, 3, V::I64(3), 1).for_each(
+            |datom| println!("select aevt: {:?}", datom)
+        );
+    }
 }

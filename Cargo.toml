@@ -11,4 +11,4 @@ im = "15.0"
 uuid =  { version = "0.8", features = ["v4"] }
 shrinkwraprs = "0.3.0"
 edn-rs = "0.16.12"
-
+immutable-chunkmap = "0.5.9"
