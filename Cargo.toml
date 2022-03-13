@@ -2,7 +2,15 @@
 name = "lilith"
 version = "0.1.0"
 authors = ["king"]
-edition = "2018"
+edition = "2021"
+
+[lib]
+name = "lilith"
+path = "src/lib.rs"
+
+[[bin]]
+name = "fiddle"
+path = "src/main.rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -10,5 +18,5 @@ edition = "2018"
 im = "15.0"
 uuid =  { version = "0.8", features = ["v4"] }
 shrinkwraprs = "0.3.0"
-edn-rs = "0.16.12"
-immutable-chunkmap = "0.5.9"
+immutable-chunkmap = "1.0.1"
+"arrow" = "10.0.0"
