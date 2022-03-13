@@ -101,7 +101,7 @@ impl <'d> std::fmt::Debug for Datom <'d> {
         f.write_str(" ")?;
         ::std::fmt::Debug::fmt(&self.t, f)?;
         f.write_str("]")?;
-        return Ok(());
+        Ok(())
     }
 }
 
@@ -111,27 +111,27 @@ impl <'d> Datom<'d> {
         a: AttributeId, 
         v: V<'d>, 
         t: TransactionId) -> Datom {
-            return Datom {
-                e, a, v: v, t
+            Datom {
+                e, a, v, t
             }
         }
 }
 
 impl <'d> traits::Datom<'d> for Datom<'d> {
     fn e(self) -> EntityId {
-        return self.e;
+        self.e
     }
     fn a(self) -> AttributeId {
-        return self.a;
+         self.a
     }
     fn v(self) -> V<'d> {
-        return self.v;
+         self.v
     }
     fn t(self) -> TransactionId {
-        return self.t;
+         self.t
     }
     fn added(self) -> bool {
-        return self.e >= 0;
+         self.e >= 0
     }
 }
 #[derive(Shrinkwrap, Clone, PartialEq, Eq)]
@@ -163,15 +163,15 @@ impl Ord for EAVTDatom<'_> {
             if ord == Equal {
                 let ord = self.datom.v.cmp(&other.datom.v);
                 if ord == Equal {
-                    return self.datom.t.cmp(&other.datom.t);
+                    self.datom.t.cmp(&other.datom.t)
                 } else {
-                    return ord
+                    ord
                 }
             } else {
-                return ord
+                ord
             }
         } else {
-            return ord
+            ord
         }
     }
 }
@@ -290,15 +290,15 @@ impl Ord for AEVTDatom<'_> {
             if ord == Equal {
                 let ord = self.datom.v.cmp(&other.datom.v);
                 if ord == Equal {
-                    return self.datom.t.cmp(&other.datom.t);
+                    self.datom.t.cmp(&other.datom.t)
                 } else {
-                    return ord
+                    ord
                 }
             } else {
-                return ord
+                ord
             }
         } else {
-            return ord
+            ord
         }
     }
 }
