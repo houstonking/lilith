@@ -6,6 +6,7 @@ extern crate shrinkwraprs;
 
 pub mod database_snapshot;
 pub mod datom;
+pub mod pull;
 mod indexes;
 
 pub type EntityId = i64;
@@ -15,7 +16,7 @@ pub type TransactionId = i64;
 const SIZE: usize = 512;
 
 #[derive(Shrinkwrap, Clone, Debug)]
-pub struct Key(pub &'static str);
+pub struct Key(pub String);
 
 pub trait Minimum {
     fn minimum() -> Self;
@@ -39,10 +40,10 @@ impl Maximum for i64 {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub enum V<'v> {
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum V {
     MinimumValue,
-    String(&'v str),
+    String(String),
     EntityId(EntityId),
     Uuid(uuid::Uuid),
     I64(i64),
@@ -50,22 +51,22 @@ pub enum V<'v> {
     MaximumValue,
 }
 
-impl<'v> Minimum for V<'v> {
-    fn minimum() -> V<'v> {
+impl Minimum for V {
+    fn minimum() -> V {
         V::MinimumValue
     }
 }
 
-impl<'v> Maximum for V<'v> {
-    fn maximum() -> V<'v> {
+impl Maximum for V {
+    fn maximum() -> V {
         V::MaximumValue
     }
 }
 
-pub trait Datom<'v> {
+pub trait Datom {
     fn e(self) -> EntityId;
     fn a(self) -> AttributeId;
-    fn v(self) -> V<'v>;
+    fn v(self) -> V;
     fn t(self) -> TransactionId;
     fn added(self) -> bool;
 }

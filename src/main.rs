@@ -1,5 +1,5 @@
 
-use lilith::{database_snapshot::DatabaseSnapshot, datom::Datom, V};
+use lilith::{database_snapshot::DatabaseSnapshot, datom::Datom, V, pull::{Pattern, AttrSpec}, Key};
 
 fn main() {
     // use arrow::datatypes::{UnionMode, DataType, Field, Schema};
@@ -42,11 +42,11 @@ fn main() {
         .for_each(|datom| println!("select ae: {:?}", datom));
 
     snapshot
-        .select_aev(3, 3, V::I64(3))
+        .select_aev(3, 3, &V::I64(3))
         .for_each(|datom| println!("select aev: {:?}", datom));
 
     snapshot
-        .select_aevt(3, 3, V::I64(3), 1)
+        .select_aevt(3, 3, &V::I64(3), 1)
         .for_each(|datom| println!("select aevt: {:?}", datom));
 
     if let Some(snapshot1) = snapshot1 {
@@ -65,11 +65,11 @@ fn main() {
             .for_each(|datom| println!("select ae: {:?}", datom));
 
         snapshot1
-            .select_aev(3, 3, V::I64(3))
+            .select_aev(3, 3, &V::I64(3))
             .for_each(|datom| println!("select aev: {:?}", datom));
 
         snapshot1
-            .select_aevt(3, 3, V::I64(3), 1)
+            .select_aevt(3, 3, &V::I64(3), 1)
             .for_each(|datom| println!("select aevt: {:?}", datom));
     }
 }
